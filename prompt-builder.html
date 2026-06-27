@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>プロンプトビルダー</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg1:#eef1ff; --bg2:#f7f0ff; --bg3:#eafaf6;
+    --ink:#1b1f33; --sub:#6b7194; --line:#e7e9f5;
+    --card:rgba(255,255,255,.72); --card2:#f5f6fc;
+    --accent:#6c5cff; --accent2:#9b6bff; --ok:#10b981; --danger:#f43f5e;
+    --grad:linear-gradient(120deg,#6c5cff 0%,#9b6bff 55%,#5ec8ff 100%);
+    --shadow:0 10px 40px -12px rgba(70,60,160,.28);
+  }
+  body{
+    font-family:-apple-system,"Hiragino Kaku Gothic ProN","Yu Gothic",Meiryo,system-ui,sans-serif;
+    color:var(--ink); line-height:1.65; min-height:100vh;
+    background:
+      radial-gradient(1100px 600px at 8% -5%,var(--bg2),transparent 60%),
+      radial-gradient(900px 500px at 100% 0%,var(--bg3),transparent 55%),
+      var(--bg1);
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1040px;margin:0 auto;padding:40px 24px 64px}
+  header{margin-bottom:28px}
+  .badge{
+    display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;color:var(--accent);
+    background:rgba(108,92,255,.1);padding:5px 12px;border-radius:999px;margin-bottom:14px;
+  }
+  header h1{
+    font-size:30px;font-weight:800;letter-spacing:-.02em;
+    background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  header p{color:var(--sub);font-size:14px;margin-top:6px;max-width:640px}
+  .layout{display:grid;grid-template-columns:1fr;gap:20px}
+  @media(min-width:880px){.layout{grid-template-columns:1.05fr .95fr;align-items:start}}
+  .panel{
+    background:var(--card);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    border:1px solid rgba(255,255,255,.7);border-radius:22px;padding:22px;box-shadow:var(--shadow);
+  }
+  .step{display:flex;align-items:center;gap:9px;font-size:13px;font-weight:700;color:var(--sub);margin-bottom:14px;letter-spacing:.02em}
+  .step .n{
+    width:22px;height:22px;border-radius:50%;background:var(--grad);color:#fff;
+    display:grid;place-items:center;font-size:12px;font-weight:800;
+  }
+  .btns{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{
+    background:#fff;border:1px solid var(--line);color:var(--ink);
+    padding:8px 14px;border-radius:12px;font-size:13px;font-weight:500;cursor:pointer;
+    transition:.16s ease;box-shadow:0 1px 2px rgba(80,70,150,.05);
+  }
+  .chip:hover{border-color:var(--accent);color:var(--accent);transform:translateY(-1px);box-shadow:0 6px 16px -8px rgba(108,92,255,.5)}
+  .chip.used{opacity:.4;pointer-events:none}
+  .addrow{display:flex;gap:8px;margin-top:14px}
+  .addrow input{
+    flex:1;background:#fff;border:1px solid var(--line);color:var(--ink);
+    border-radius:12px;padding:10px 13px;font-size:13px;transition:.16s;
+  }
+  .addrow input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(108,92,255,.13)}
+  .btn{border:none;cursor:pointer;font-size:13px;font-weight:600;border-radius:12px;transition:.16s ease;font-family:inherit}
+  .btn-grad{background:var(--grad);color:#fff;padding:10px 16px;box-shadow:0 8px 20px -8px rgba(108,92,255,.6)}
+  .btn-grad:hover{transform:translateY(-1px);filter:brightness(1.05)}
+  .btn-ghost{background:#fff;border:1px solid var(--line);color:var(--sub);padding:10px 16px}
+  .btn-ghost:hover{color:var(--accent);border-color:var(--accent)}
+  #slots{display:flex;flex-direction:column;gap:12px;margin-top:16px;min-height:64px}
+  .empty{
+    color:var(--sub);font-size:13px;border:1.5px dashed var(--line);border-radius:16px;
+    padding:30px;text-align:center;background:rgba(255,255,255,.4)
+  }
+  .slot{
+    background:#fff;border:1px solid var(--line);border-radius:16px;padding:14px;
+    transition:.16s;box-shadow:0 2px 8px -4px rgba(80,70,150,.12)
+  }
+  .slot.drag{opacity:.4}
+  .slot.over{border-color:var(--accent);box-shadow:0 0 0 3px rgba(108,92,255,.13)}
+  .slot-head{display:flex;align-items:center;gap:9px;margin-bottom:10px}
+  .grip{cursor:grab;color:#c4c8e0;font-size:15px;letter-spacing:-2px}
+  .slot-title{
+    flex:1;background:transparent;border:none;color:var(--ink);font-weight:700;font-size:14.5px;
+    border-bottom:2px solid transparent;padding:2px 0
+  }
+  .slot-title:focus{outline:none;border-bottom-color:var(--accent)}
+  .x{background:transparent;border:none;color:#c4c8e0;cursor:pointer;font-size:14px;padding:4px 8px;border-radius:8px;transition:.15s}
+  .x:hover{color:var(--danger);background:#fff0f3}
+  .slot textarea{
+    width:100%;background:var(--card2);border:1px solid var(--line);color:var(--ink);
+    border-radius:11px;padding:10px 12px;font-size:13px;resize:vertical;min-height:62px;font-family:inherit;transition:.16s
+  }
+  .slot textarea:focus{outline:none;border-color:var(--accent);background:#fff;box-shadow:0 0 0 3px rgba(108,92,255,.1)}
+  .slot textarea::placeholder{color:#aab0cf}
+  .out-actions{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+  .btn-build{font-size:14px;padding:12px 22px}
+  .out-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+  .out-head span{font-size:12px;color:var(--sub);font-weight:600}
+  #output{
+    width:100%;background:#fbfbff;border:1px solid var(--line);color:var(--ink);
+    border-radius:14px;padding:16px;font-size:13px;min-height:300px;resize:vertical;
+    font-family:ui-monospace,"SFMono-Regular",Menlo,monospace;line-height:1.75
+  }
+  #output:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(108,92,255,.1)}
+  .copybtn{display:inline-flex;align-items:center;gap:5px;font-size:12px;padding:7px 13px}
+  .toast{
+    position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(16px);
+    background:var(--ink);color:#fff;padding:11px 20px;border-radius:999px;font-size:13px;font-weight:600;
+    opacity:0;transition:.28s cubic-bezier(.2,.8,.3,1);pointer-events:none;box-shadow:var(--shadow);z-index:10
+  }
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <span class="badge">✦ AI Prompt Builder</span>
+    <h1>プロンプトビルダー</h1>
+    <p>項目ボタンを押して枠を追加 → 内容を記入 → 「プロンプトを作成」で1つにまとめます。重要な制約や出力形式は下のほうに置くと安定します。</p>
+  </header>
+
+  <div class="layout">
+    <!-- 左：項目選択と編集 -->
+    <section class="panel">
+      <div class="step"><span class="n">1</span>項目を選ぶ</div>
+      <div class="btns" id="presetBtns"></div>
+      <div class="addrow">
+        <input id="customName" placeholder="独自の項目名を入力（例：参考リンク）">
+        <button class="btn btn-grad" onclick="addCustom()">＋ 追加</button>
+      </div>
+
+      <div class="step" style="margin-top:26px"><span class="n">2</span>内容を記入（ドラッグで並べ替え）</div>
+      <div id="slots"><div class="empty">上のボタンから項目を追加してください</div></div>
+    </section>
+
+    <!-- 右：出力 -->
+    <section class="panel">
+      <div class="step"><span class="n">3</span>完成プロンプト</div>
+      <div class="out-actions">
+        <button class="btn btn-grad btn-build" onclick="build()">▶ プロンプトを作成</button>
+        <button class="btn btn-ghost" onclick="clearAll()">クリア</button>
+      </div>
+      <div class="out-head">
+        <span>出力</span>
+        <button class="btn btn-ghost copybtn" onclick="copyOut()">📋 コピー</button>
+      </div>
+      <textarea id="output" placeholder="ここに完成したプロンプトが表示されます。" spellcheck="false"></textarea>
+    </section>
+  </div>
+</div>
+
+<div class="toast" id="toast">コピーしました</div>
+
+<script>
+const PRESETS = [
+  ["役割",        "あなたは〇〇の専門家です。"],
+  ["目的・ゴール", "このプロンプトで達成したいことを書く"],
+  ["背景・前提",   "状況や前提条件を説明する"],
+  ["タスク・依頼内容","具体的にやってほしいことを書く"],
+  ["対象読者",     "誰に向けた成果物か（例：初心者向け）"],
+  ["入力情報",     "AIに渡すデータや素材"],
+  ["出力形式",     "例：箇条書き／表／Markdown／JSON など"],
+  ["トーン・文体",  "例：丁寧／カジュアル／専門的"],
+  ["文字数・分量",  "例：500字程度／3案"],
+  ["手順・ステップ","従ってほしい進め方"],
+  ["制約・禁止事項","やってはいけないこと、守ってほしい条件"],
+  ["参考例（Few-shot）","良い例・悪い例を示す"],
+];
+
+let slots = [];
+let uid = 0;
+const slotsEl = document.getElementById('slots');
+const btnsEl  = document.getElementById('presetBtns');
+
+PRESETS.forEach(([name,ph]) => {
+  const b = document.createElement('button');
+  b.className = 'chip';
+  b.textContent = '＋ ' + name;
+  b.dataset.name = name;
+  b.onclick = () => addSlot(name, ph);
+  btnsEl.appendChild(b);
+});
+
+function refreshChips(){
+  document.querySelectorAll('#presetBtns .chip').forEach(c=>{
+    c.classList.toggle('used', slots.some(s=>s.name===c.dataset.name));
+  });
+}
+function addSlot(name, placeholder, value=''){
+  slots.push({id:++uid, name, placeholder:placeholder||'内容を記入', value});
+  render();
+}
+function addCustom(){
+  const i = document.getElementById('customName');
+  const n = i.value.trim();
+  if(!n) return;
+  addSlot(n, '内容を記入'); i.value='';
+}
+function removeSlot(id){ slots = slots.filter(s=>s.id!==id); render(); }
+
+function render(){
+  if(slots.length===0){
+    slotsEl.innerHTML = '<div class="empty">上のボタンから項目を追加してください</div>';
+    refreshChips(); return;
+  }
+  slotsEl.innerHTML = '';
+  slots.forEach((s, idx) => {
+    const d = document.createElement('div');
+    d.className = 'slot'; d.draggable = true; d.dataset.idx = idx;
+    d.innerHTML = `
+      <div class="slot-head">
+        <span class="grip">⋮⋮</span>
+        <input class="slot-title" value="${esc(s.name)}">
+        <button class="x" title="削除">✕</button>
+      </div>
+      <textarea placeholder="${esc(s.placeholder)}">${esc(s.value)}</textarea>`;
+    d.querySelector('.slot-title').oninput = e => s.name = e.target.value;
+    d.querySelector('textarea').oninput = e => s.value = e.target.value;
+    d.querySelector('.x').onclick = () => removeSlot(s.id);
+    d.addEventListener('dragstart', e=>{ d.classList.add('drag'); e.dataTransfer.setData('i', idx); });
+    d.addEventListener('dragend',  ()=> d.classList.remove('drag'));
+    d.addEventListener('dragover', e=>{ e.preventDefault(); d.classList.add('over'); });
+    d.addEventListener('dragleave',()=> d.classList.remove('over'));
+    d.addEventListener('drop', e=>{
+      e.preventDefault(); d.classList.remove('over');
+      const from = +e.dataTransfer.getData('i'), to = idx;
+      const [m] = slots.splice(from,1); slots.splice(to,0,m); render();
+    });
+    slotsEl.appendChild(d);
+  });
+  refreshChips();
+}
+
+function build(){
+  const filled = slots.filter(s=>s.value.trim() || s.name.trim());
+  if(filled.length===0){ toast('項目を追加してください'); return; }
+  const out = filled.map(s=>{
+    const body = s.value.trim() || '（未記入）';
+    return `# ${s.name.trim()}\n${body}`;
+  }).join('\n\n');
+  document.getElementById('output').value = out;
+  toast('作成しました ✨');
+}
+function clearAll(){
+  if(slots.length && !confirm('すべての項目を削除しますか？')) return;
+  slots = []; document.getElementById('output').value=''; render();
+}
+function copyOut(){
+  const t = document.getElementById('output');
+  if(!t.value.trim()){ toast('先に作成してください'); return; }
+  navigator.clipboard.writeText(t.value).then(()=>toast('コピーしました'))
+    .catch(()=>{ t.select(); document.execCommand('copy'); toast('コピーしました'); });
+}
+function esc(s){ return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+let toastT;
+function toast(msg){
+  const el = document.getElementById('toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastT); toastT = setTimeout(()=>el.classList.remove('show'), 1600);
+}
+document.getElementById('customName').addEventListener('keydown', e=>{ if(e.key==='Enter') addCustom(); });
+render();
+</script>
+</body>
+</html>
